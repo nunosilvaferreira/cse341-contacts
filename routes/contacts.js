@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDB } = require('../config/dbConnection');
+const { getDB } = require('../config/dbConnection.js');
 const router = express.Router();
 
 // Get all contacts
