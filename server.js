@@ -1,15 +1,23 @@
 const express = require('express');
-const dotenv = require('dotenv').config();
-const { connectDB } = require('./config/dbConnection');
-
 const app = express();
-const port = process.env.PORT || 3000;
-
-connectDB();
+const connectDB = require('./config/dbConnection');
 
 app.use(express.json());
-app.use('/api/contacts', require('./routes/contacts'));
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// Conecta à base de dados e inicia o servidor
+async function startServer() {
+  try {
+    await connectDB();
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Erro ao iniciar o servidor:', err);
+    process.exit(1);
+  }
+}
+
+startServer();
+
+module.exports = app;

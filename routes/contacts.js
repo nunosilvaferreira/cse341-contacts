@@ -1,20 +1,27 @@
 const express = require('express');
-const { getDb } = require('../config/dbConnection.js');
 const router = express.Router();
+const Contact = require('../models/Contact');
 
-// Get all contacts
 router.get('/', async (req, res) => {
-  const db = getDb();
-  const contacts = await db.collection('contacts').find().toArray();
-  res.json(contacts);
+  try {
+    const contacts = await Contact.find();
+    res.json(contacts);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
-// Get contact by ID
 router.get('/:id', async (req, res) => {
-  const db = getDb();
-  const contact = await db.collection('contacts').findOne({ _id: new require('mongodb').ObjectId(req.params.id) });
-  if (!contact) return res.status(404).json({ message: 'Contact not found' });
-  res.json(contact);
+  try {
+    const contact = await Contact.findById(req.params.id);
+    if (contact) {
+      res.json(contact);
+    } else {
+      res.status(404).json({ message: 'Contacto não encontrado' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 module.exports = router;
