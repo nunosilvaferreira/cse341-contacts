@@ -4,7 +4,6 @@ const connectDB = require('./config/dbConnection');
 
 app.use(express.json());
 
-// Conecta à base de dados e inicia o servidor
 async function startServer() {
   try {
     await connectDB();
