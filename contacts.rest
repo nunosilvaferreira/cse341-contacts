@@ -1,0 +1,5 @@
+GET http://localhost:3000/api/contacts
+
+###
+
+GET http://localhost:3000/api/contacts/1234567890abc
