@@ -2,8 +2,8 @@
 @baseUrl = http://localhost:3000
 
 
-### Render base URL (replace with your appName)
-@render = https://<your-app-name>.onrender.com
+### Render base URL cse341-contacts
+@render = https://cse341-contacts-v833.onrender.com/
 
 
 ### Get all contacts (local)
