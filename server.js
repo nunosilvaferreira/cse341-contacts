@@ -1,22 +1,38 @@
+require('dotenv').config();
 const express = require('express');
-const app = express();
-const connectDB = require('./config/dbConnection');
+const morgan = require('morgan');
+const cors = require('cors');
 
+
+const contactsRouter = require('./src/routes/contacts.routes');
+
+
+const app = express();
+
+
+app.use(morgan('dev'));
+app.use(cors());
 app.use(express.json());
 
-async function startServer() {
-  try {
-    await connectDB();
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('Erro ao iniciar o servidor:', err);
-    process.exit(1);
-  }
-}
 
-startServer();
+// Healthcheck / root
+app.get('/', (_req, res) => {
+res.status(200).send('Contacts API - Week 01');
+});
 
-module.exports = app;
+
+// Routes
+app.use('/contacts', contactsRouter);
+
+
+// Basic error handler (Week 01 scope)
+app.use((err, _req, res, _next) => {
+console.error(err);
+res.status(500).json({ error: 'Internal Server Error' });
+});
+
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+console.log(`Server listening on port ${PORT}`);
+});

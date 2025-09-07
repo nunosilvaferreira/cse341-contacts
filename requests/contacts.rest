@@ -1,0 +1,23 @@
+### Local base URL
+@baseUrl = http://localhost:3000
+
+
+### Render base URL (replace with your appName)
+@render = https://<your-app-name>.onrender.com
+
+
+### Get all contacts (local)
+GET {{baseUrl}}/contacts
+
+
+### Get a single contact by id (local)
+# Replace the id with one from your database
+GET {{baseUrl}}/contacts/665a8de6e0f1d4fddc9a1234
+
+
+### Get all contacts (Render)
+GET {{render}}/contacts
+
+
+### Get a single contact by id (Render)
+GET {{render}}/contacts/665a8de6e0f1d4fddc9a1234
