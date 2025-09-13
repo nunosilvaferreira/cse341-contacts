@@ -1,24 +1,8 @@
-{
-"name": "cse341-contacts",
-"version": "1.0.0",
-"description": "Contacts API - CSE341 Week 01",
-"main": "server.js",
-"type": "commonjs",
-"scripts": {
-"dev": "nodemon server.js",
-"start": "node server.js"
-},
-"engines": {
-"node": ">=18 <21"
-},
+{"name":"cse341-contacts","version":"1.0.0","description":"Contacts API - CSE341 Week 01","main":"server.js","type":"commonjs","scripts":{"dev":"nodemon server.js","start":"node server.js"},"engines":{"node":">=18 <21"},"dependencies":{"cors":"^2.8.5","dotenv":"^16.4.5","express":"^4.19.2","mongodb":"^6.8.0","morgan":"^1.10.0","swagger-ui-express":"^5.0.1"},"devDependencies":{"nodemon":"^3.1.0"}}
+
 "dependencies": {
-"cors": "^2.8.5",
-"dotenv": "^16.4.5",
-"express": "^4.19.2",
-"mongodb": "^6.8.0",
-"morgan": "^1.10.0"
-},
-"devDependencies": {
-"nodemon": "^3.1.0"
-}
+  "express": "...",
+  "dotenv": "...",
+  "mongodb": "...",
+  "swagger-ui-express": "^5.0.0" // 👈 NOVO
 }

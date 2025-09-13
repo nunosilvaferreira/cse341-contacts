@@ -1,23 +1,43 @@
-### Local base URL
-@baseUrl = http://localhost:3000
+### GET all contacts
+GET http://localhost:3000/contacts
+Content-Type: application/json
 
+###
 
-### Render base URL cse341-contacts
-@render = https://cse341-contacts-v833.onrender.com/
+### GET contact by ID
+GET http://localhost:3000/contacts/650d2f2b4f1a3c1a24e7a123
+Content-Type: application/json
 
+###
 
-### Get all contacts (local)
-GET {{baseUrl}}/contacts
+### POST create a new contact
+POST http://localhost:3000/contacts
+Content-Type: application/json
 
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "favoriteColor": "Blue",
+  "birthday": "1990-01-01"
+}
 
-### Get a single contact by id (local)
-# Replace the id with one from your database
-GET {{baseUrl}}/contacts/665a8de6e0f1d4fddc9a1234
+###
 
+### PUT update an existing contact
+PUT http://localhost:3000/contacts/650d2f2b4f1a3c1a24e7a123
+Content-Type: application/json
 
-### Get all contacts (Render)
-GET {{render}}/contacts
+{
+  "firstName": "John",
+  "lastName": "Doe Updated",
+  "email": "john@example.com",
+  "favoriteColor": "Red",
+  "birthday": "1990-01-01"
+}
 
+###
 
-### Get a single contact by id (Render)
-GET {{render}}/contacts/665a8de6e0f1d4fddc9a1234
+### DELETE a contact
+DELETE http://localhost:3000/contacts/650d2f2b4f1a3c1a24e7a123
+Content-Type: application/json
