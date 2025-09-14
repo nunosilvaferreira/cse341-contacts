@@ -22,5 +22,21 @@
     "email": "carla.mendes@example.com",
     "favoriteColor": "Red",
     "birthday": "1993-12-25"
+  },
+  {
+    "_id": "68c6cff338c0aad61b8b0552",
+    "firstName": "Sofia",
+    "lastName": "Rodrigues",
+    "email": "sofia.rodrigues@example.com",
+    "favoriteColor": "Purple",
+    "birthday": "1992-07-15"
+  },
+  {
+    "_id": "68c6d1eccf85f80b8add7b9e",
+    "firstName": "Miguel",
+    "lastName": "Santos",
+    "email": "miguel.santos@example.com",
+    "favoriteColor": "Blue",
+    "birthday": "1988-11-23"
   }
 ]

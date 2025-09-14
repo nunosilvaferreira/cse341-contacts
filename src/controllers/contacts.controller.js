@@ -1,5 +1,4 @@
 // src/controllers/contacts.controller.js
-
 const mongodb = require('../db/connection');
 const { ObjectId } = require('mongodb');
 const fs = require('fs').promises;
@@ -23,28 +22,31 @@ async function writeContactsFile(arr) {
   await fs.writeFile(seedFile, JSON.stringify(arr, null, 2), 'utf8');
 }
 
-// Helper: convert id for Mongo query (ObjectId if valid, else keep string)
-function mongoQueryId(id) {
-  return ObjectId.isValid(id) ? new ObjectId(id) : id;
+// Sync JSON file with MongoDB
+async function syncWithMongoDB() {
+  try {
+    const contacts = await readContactsFile();
+    const db = mongodb.getDb();
+    const collection = db.collection('contacts');
+    
+    // Clear existing data in MongoDB
+    await collection.deleteMany({});
+    
+    // Insert all contacts from JSON file
+    if (contacts.length > 0) {
+      await collection.insertMany(contacts);
+    }
+    
+    console.log('✅ Contacts synchronized with MongoDB');
+  } catch (err) {
+    console.error('❌ Error syncing with MongoDB:', err);
+  }
 }
 
-// GET all contacts (ensures each has an _id)
+// GET all contacts
 const getAll = async (req, res) => {
   try {
     const contacts = await readContactsFile();
-    let updated = false;
-
-    contacts.forEach(contact => {
-      if (!contact._id) {
-        contact._id = new ObjectId().toString();
-        updated = true;
-      }
-    });
-
-    if (updated) {
-      await writeContactsFile(contacts);
-    }
-
     return res.status(200).json(contacts);
   } catch (err) {
     console.error('getAll error:', err);
@@ -58,7 +60,11 @@ const getSingle = async (req, res) => {
     const id = req.params.id;
     const contacts = await readContactsFile();
     const contact = contacts.find(c => String(c._id) === String(id));
-    if (!contact) return res.status(404).json({ message: 'Contact not found.' });
+    
+    if (!contact) {
+      return res.status(404).json({ message: 'Contact not found.' });
+    }
+    
     return res.status(200).json(contact);
   } catch (err) {
     console.error('getSingle error:', err);
@@ -70,13 +76,13 @@ const getSingle = async (req, res) => {
 const createContact = async (req, res) => {
   try {
     const { firstName, lastName, email, favoriteColor, birthday } = req.body;
+    
     if (!firstName || !lastName || !email) {
       return res.status(400).json({ message: 'firstName, lastName and email are required.' });
     }
 
-    const newId = new ObjectId().toString();
-    const contact = {
-      _id: newId,
+    const newContact = {
+      _id: new ObjectId().toString(),
       firstName,
       lastName,
       email,
@@ -84,18 +90,18 @@ const createContact = async (req, res) => {
       birthday: birthday || null
     };
 
+    // Update JSON file
     const contacts = await readContactsFile();
-    contacts.push(contact);
+    contacts.push(newContact);
     await writeContactsFile(contacts);
+    
+    // Sync with MongoDB
+    await syncWithMongoDB();
 
-    const dbContact = { ...contact, _id: new ObjectId(newId) };
-    const result = await mongodb.getDb().db().collection('contacts').insertOne(dbContact);
-
-    if (result.acknowledged) {
-      return res.status(201).json({ id: newId, message: 'Contact created (file + Mongo).' });
-    } else {
-      return res.status(500).json({ message: 'Created in file but failed to insert into Mongo.' });
-    }
+    return res.status(201).json({ 
+      id: newContact._id, 
+      message: 'Contact created and synchronized with MongoDB.' 
+    });
   } catch (err) {
     console.error('createContact error:', err);
     return res.status(500).json({ message: 'Error creating contact.', error: err.message });
@@ -113,11 +119,15 @@ const updateContact = async (req, res) => {
     }
 
     const contacts = await readContactsFile();
-    const idx = contacts.findIndex(c => String(c._id) === String(id));
-    if (idx === -1) return res.status(404).json({ message: 'Contact not found.' });
+    const contactIndex = contacts.findIndex(c => String(c._id) === String(id));
+    
+    if (contactIndex === -1) {
+      return res.status(404).json({ message: 'Contact not found.' });
+    }
 
-    const updated = {
-      _id: id,
+    // Update contact in array
+    contacts[contactIndex] = {
+      ...contacts[contactIndex],
       firstName,
       lastName,
       email,
@@ -125,18 +135,13 @@ const updateContact = async (req, res) => {
       birthday: birthday || null
     };
 
-    contacts[idx] = updated;
+    // Update JSON file
     await writeContactsFile(contacts);
+    
+    // Sync with MongoDB
+    await syncWithMongoDB();
 
-    // Update Mongo using string _id for consistency
-    const collection = mongodb.getDb().db().collection('contacts');
-    await collection.updateOne(
-      { _id: id }, // filter by string
-      { $set: { ...updated, _id: id } }, // keep _id as string
-      { upsert: true }
-    );
-
-    return res.status(200).json({ message: 'Contact updated (file + Mongo).' });
+    return res.status(200).json({ message: 'Contact updated and synchronized with MongoDB.' });
   } catch (err) {
     console.error('updateContact error:', err);
     return res.status(500).json({ message: 'Error updating contact.', error: err.message });
@@ -147,28 +152,40 @@ const updateContact = async (req, res) => {
 const deleteContact = async (req, res) => {
   try {
     const id = req.params.id;
-
     const contacts = await readContactsFile();
-    const newContacts = contacts.filter(c => String(c._id) !== String(id));
-    if (newContacts.length === contacts.length) {
+    const filteredContacts = contacts.filter(c => String(c._id) !== String(id));
+    
+    if (filteredContacts.length === contacts.length) {
       return res.status(404).json({ message: 'Contact not found.' });
     }
-    await writeContactsFile(newContacts);
 
-    const collection = mongodb.getDb().db().collection('contacts');
-    await collection.deleteOne({ _id: id });
+    // Update JSON file
+    await writeContactsFile(filteredContacts);
+    
+    // Sync with MongoDB
+    await syncWithMongoDB();
 
-    return res.status(200).json({ message: 'Contact deleted (file + Mongo).' });
+    return res.status(200).json({ message: 'Contact deleted and synchronized with MongoDB.' });
   } catch (err) {
     console.error('deleteContact error:', err);
     return res.status(500).json({ message: 'Error deleting contact.', error: err.message });
   }
 };
 
+// Initialize synchronization on server start
+async function initializeSync() {
+  try {
+    await syncWithMongoDB();
+  } catch (err) {
+    console.error('Initial sync error:', err);
+  }
+}
+
 module.exports = {
   getAll,
   getSingle,
   createContact,
   updateContact,
-  deleteContact
+  deleteContact,
+  initializeSync
 };
