@@ -6,7 +6,7 @@ const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const contactsRouter = require('./src/routes/contacts.routes');
-const mongodb = require('./src/db/connection');
+const { connectToDatabase } = require('./src/db/connection'); // ← Importa apenas connectToDatabase
 const { initializeSync } = require('./src/controllers/contacts.controller');
 
 const app = express();
@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize database connection and sync
-mongodb.connectToDatabase()
+connectToDatabase()
     .then(async () => {
         console.log('✅ Connected to MongoDB successfully');
         // Initialize synchronization between JSON and MongoDB

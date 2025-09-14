@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const contactsController = require('../controllers/contacts.controller');
+const { manualSync } = require('../controllers/contacts.controller');
 
 // GET all contacts
 router.get('/', contactsController.getAll);
@@ -18,5 +19,8 @@ router.put('/:id', contactsController.updateContact);
 
 // DELETE a contact by ID
 router.delete('/:id', contactsController.deleteContact);
+
+// GET manual sync with MongoDB
+router.get('/sync', manualSync);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 // src/controllers/contacts.controller.js
-const mongodb = require('../db/connection');
+const { getDb } = require('../db/connection'); // ← IMPORTANTE: importa apenas getDb
 const { ObjectId } = require('mongodb');
 const fs = require('fs').promises;
 const path = require('path');
@@ -22,24 +22,37 @@ async function writeContactsFile(arr) {
   await fs.writeFile(seedFile, JSON.stringify(arr, null, 2), 'utf8');
 }
 
-// Sync JSON file with MongoDB
+// Sync JSON file with MongoDB (FUNÇÃO CORRIGIDA)
 async function syncWithMongoDB() {
   try {
     const contacts = await readContactsFile();
-    const db = mongodb.getDb();
+    const db = getDb(); // ← AGORA USA getDb() diretamente
     const collection = db.collection('contacts');
     
+    console.log('📊 Syncing MongoDB with JSON file...');
+    console.log('Contacts from JSON:', contacts.length);
+    
     // Clear existing data in MongoDB
-    await collection.deleteMany({});
+    const deleteResult = await collection.deleteMany({});
+    console.log('Deleted documents from MongoDB:', deleteResult.deletedCount);
     
     // Insert all contacts from JSON file
     if (contacts.length > 0) {
-      await collection.insertMany(contacts);
+      // Convert string _id to ObjectId for MongoDB
+      const contactsForMongo = contacts.map(contact => ({
+        ...contact,
+        _id: ObjectId.isValid(contact._id) ? new ObjectId(contact._id) : contact._id
+      }));
+      
+      const insertResult = await collection.insertMany(contactsForMongo);
+      console.log('Inserted documents to MongoDB:', insertResult.insertedCount);
     }
     
-    console.log('✅ Contacts synchronized with MongoDB');
+    console.log('✅ Contacts synchronized with MongoDB successfully');
+    return true;
   } catch (err) {
     console.error('❌ Error syncing with MongoDB:', err);
+    throw err;
   }
 }
 
@@ -172,12 +185,25 @@ const deleteContact = async (req, res) => {
   }
 };
 
+// Manual sync endpoint
+const manualSync = async (req, res) => {
+  try {
+    await syncWithMongoDB();
+    return res.status(200).json({ message: 'Manual synchronization completed successfully.' });
+  } catch (err) {
+    console.error('Manual sync error:', err);
+    return res.status(500).json({ message: 'Error during manual synchronization.', error: err.message });
+  }
+};
+
 // Initialize synchronization on server start
 async function initializeSync() {
   try {
+    console.log('🔄 Initializing MongoDB synchronization...');
     await syncWithMongoDB();
+    console.log('✅ Initial synchronization completed');
   } catch (err) {
-    console.error('Initial sync error:', err);
+    console.error('❌ Initial sync error:', err);
   }
 }
 
@@ -187,5 +213,6 @@ module.exports = {
   createContact,
   updateContact,
   deleteContact,
+  manualSync,
   initializeSync
 };
