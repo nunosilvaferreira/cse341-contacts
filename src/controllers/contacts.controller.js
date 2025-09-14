@@ -1,114 +1,167 @@
 // src/controllers/contacts.controller.js
 
-const mongodb = require('../db/connect');  // MongoDB
+const mongodb = require('../db/connection');
 const { ObjectId } = require('mongodb');
+const fs = require('fs').promises;
+const path = require('path');
 
-// GET all contacts
+const seedFile = path.join(__dirname, '../../seed/contacts.json');
+
+// Read contacts from JSON file
+async function readContactsFile() {
+  try {
+    const raw = await fs.readFile(seedFile, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+// Write contacts array to JSON file
+async function writeContactsFile(arr) {
+  await fs.writeFile(seedFile, JSON.stringify(arr, null, 2), 'utf8');
+}
+
+// Helper: convert id for Mongo query (ObjectId if valid, else keep string)
+function mongoQueryId(id) {
+  return ObjectId.isValid(id) ? new ObjectId(id) : id;
+}
+
+// GET all contacts (ensures each has an _id)
 const getAll = async (req, res) => {
   try {
-    const result = await mongodb.getDb().db().collection('contacts').find();
-    const contacts = await result.toArray();
-    res.status(200).json(contacts);
+    const contacts = await readContactsFile();
+    let updated = false;
+
+    contacts.forEach(contact => {
+      if (!contact._id) {
+        contact._id = new ObjectId().toString();
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      await writeContactsFile(contacts);
+    }
+
+    return res.status(200).json(contacts);
   } catch (err) {
-    console.error('Error in getAll:', err);
-    res.status(500).json({ message: 'Error retrieving contacts.', error: err.message });
+    console.error('getAll error:', err);
+    return res.status(500).json({ message: 'Error reading contacts file.', error: err.message });
   }
 };
 
-// GET single contact by ID
+// GET a single contact
 const getSingle = async (req, res) => {
-  const id = req.params.id;
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ message: 'Invalid ID format.' });
-  }
   try {
-    const userId = new ObjectId(id);
-    const result = await mongodb.getDb().db().collection('contacts').find({ _id: userId });
-    const contacts = await result.toArray();
-    if (contacts.length === 0) {
-      return res.status(404).json({ message: 'Contact not found.' });
-    }
-    res.status(200).json(contacts[0]);
+    const id = req.params.id;
+    const contacts = await readContactsFile();
+    const contact = contacts.find(c => String(c._id) === String(id));
+    if (!contact) return res.status(404).json({ message: 'Contact not found.' });
+    return res.status(200).json(contact);
   } catch (err) {
-    console.error('Error in getSingle:', err);
-    res.status(500).json({ message: 'Error retrieving the contact.', error: err.message });
+    console.error('getSingle error:', err);
+    return res.status(500).json({ message: 'Error reading contact.', error: err.message });
   }
 };
 
-// POST create a new contact
+// CREATE a new contact
 const createContact = async (req, res) => {
-  const { firstName, lastName, email, favoriteColor, birthday } = req.body;
-  // You can use status 200 or 204. If you use 204, you generally do not return a body.
-  if (!firstName || !lastName || !email) {
-    return res.status(400).json({ message: 'firstName, lastName and email are required.' });
-  }
-  const contact = {
-    firstName,
-    lastName,
-    email,
-    favoriteColor: favoriteColor || null,
-    birthday: birthday || null
-  };
   try {
-    const response = await mongodb.getDb().db().collection('contacts').insertOne(contact);
-    if (response.acknowledged) {
-      res.status(201).json({ id: response.insertedId, message: 'Contact created.' });
+    const { firstName, lastName, email, favoriteColor, birthday } = req.body;
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ message: 'firstName, lastName and email are required.' });
+    }
+
+    const newId = new ObjectId().toString();
+    const contact = {
+      _id: newId,
+      firstName,
+      lastName,
+      email,
+      favoriteColor: favoriteColor || null,
+      birthday: birthday || null
+    };
+
+    const contacts = await readContactsFile();
+    contacts.push(contact);
+    await writeContactsFile(contacts);
+
+    const dbContact = { ...contact, _id: new ObjectId(newId) };
+    const result = await mongodb.getDb().db().collection('contacts').insertOne(dbContact);
+
+    if (result.acknowledged) {
+      return res.status(201).json({ id: newId, message: 'Contact created (file + Mongo).' });
     } else {
-      res.status(500).json({ message: 'Failed to create contact.' });
+      return res.status(500).json({ message: 'Created in file but failed to insert into Mongo.' });
     }
   } catch (err) {
-    console.error('Error in createContact:', err);
-    res.status(500).json({ message: 'Error creating contact.', error: err.message });
+    console.error('createContact error:', err);
+    return res.status(500).json({ message: 'Error creating contact.', error: err.message });
   }
 };
 
-// PUT update a contact by ID
+// UPDATE an existing contact
 const updateContact = async (req, res) => {
-  const id = req.params.id;
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ message: 'Invalid ID format.' });
-  }
-  const { firstName, lastName, email, favoriteColor, birthday } = req.body;
-  if (!firstName || !lastName || !email) {
-    return res.status(400).json({ message: 'firstName, lastName and email are required.' });
-  }
-  const contact = {
-    firstName,
-    lastName,
-    email,
-    favoriteColor: favoriteColor || null,
-    birthday: birthday || null
-  };
   try {
-    const userId = new ObjectId(id);
-    const response = await mongodb.getDb().db().collection('contacts').replaceOne({ _id: userId }, contact);
-    if (response.matchedCount === 0) {
-      return res.status(404).json({ message: 'Contact not found.' });
+    const id = req.params.id;
+    const { firstName, lastName, email, favoriteColor, birthday } = req.body;
+
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ message: 'firstName, lastName and email are required.' });
     }
-    // You can use status 200 or 204. If you use 204, you generally do not return a body.
-    res.status(200).json({ message: 'Contact updated.' });
+
+    const contacts = await readContactsFile();
+    const idx = contacts.findIndex(c => String(c._id) === String(id));
+    if (idx === -1) return res.status(404).json({ message: 'Contact not found.' });
+
+    const updated = {
+      _id: id,
+      firstName,
+      lastName,
+      email,
+      favoriteColor: favoriteColor || null,
+      birthday: birthday || null
+    };
+
+    contacts[idx] = updated;
+    await writeContactsFile(contacts);
+
+    // Update Mongo using string _id for consistency
+    const collection = mongodb.getDb().db().collection('contacts');
+    await collection.updateOne(
+      { _id: id }, // filter by string
+      { $set: { ...updated, _id: id } }, // keep _id as string
+      { upsert: true }
+    );
+
+    return res.status(200).json({ message: 'Contact updated (file + Mongo).' });
   } catch (err) {
-    console.error('Error in updateContact:', err);
-    res.status(500).json({ message: 'Error updating contact.', error: err.message });
+    console.error('updateContact error:', err);
+    return res.status(500).json({ message: 'Error updating contact.', error: err.message });
   }
 };
 
-// DELETE a contact by ID
+// DELETE a contact
 const deleteContact = async (req, res) => {
-  const id = req.params.id;
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ message: 'Invalid ID format.' });
-  }
   try {
-    const userId = new ObjectId(id);
-    const response = await mongodb.getDb().db().collection('contacts').deleteOne({ _id: userId });
-    if (response.deletedCount === 0) {
+    const id = req.params.id;
+
+    const contacts = await readContactsFile();
+    const newContacts = contacts.filter(c => String(c._id) !== String(id));
+    if (newContacts.length === contacts.length) {
       return res.status(404).json({ message: 'Contact not found.' });
     }
-    res.status(200).json({ message: 'Contact deleted.' });
+    await writeContactsFile(newContacts);
+
+    const collection = mongodb.getDb().db().collection('contacts');
+    await collection.deleteOne({ _id: id });
+
+    return res.status(200).json({ message: 'Contact deleted (file + Mongo).' });
   } catch (err) {
-    console.error('Error in deleteContact:', err);
-    res.status(500).json({ message: 'Error deleting contact.', error: err.message });
+    console.error('deleteContact error:', err);
+    return res.status(500).json({ message: 'Error deleting contact.', error: err.message });
   }
 };
 

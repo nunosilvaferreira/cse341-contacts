@@ -3,7 +3,7 @@
   "info": {
     "title": "Contacts API",
     "version": "1.0.0",
-    "description": "API for managing contacts created for CSE 341."
+    "description": "API for managing contacts. Reads/writes from seed/contacts.json and syncs with MongoDB."
   },
   "servers": [
     {
@@ -21,7 +21,7 @@
         "summary": "Get all contacts",
         "responses": {
           "200": {
-            "description": "List of all contacts",
+            "description": "List of all contacts from seed/contacts.json",
             "content": {
               "application/json": {
                 "schema": {
@@ -34,7 +34,7 @@
         }
       },
       "post": {
-        "summary": "Create a new contact",
+        "summary": "Create a new contact (updates file + MongoDB)",
         "requestBody": {
           "required": true,
           "content": {
@@ -58,7 +58,10 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": { "type": "string", "example": "650d2f2b4f1a3c1a24e7a123" },
+                    "id": {
+                      "type": "string",
+                      "example": "650d2f2b4f1a3c1a24e7a123"
+                    },
                     "message": { "type": "string" }
                   }
                 }
@@ -93,7 +96,7 @@
         }
       },
       "put": {
-        "summary": "Update a contact by ID",
+        "summary": "Update a contact by ID (updates file + MongoDB)",
         "parameters": [
           {
             "name": "id",
@@ -106,7 +109,14 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ContactInput" }
+              "schema": { "$ref": "#/components/schemas/ContactInput" },
+              "example": {
+                "firstName": "John",
+                "lastName": "Doe Updated",
+                "email": "john@example.com",
+                "favoriteColor": "Red",
+                "birthday": "1990-01-01"
+              }
             }
           }
         },
@@ -116,7 +126,7 @@
         }
       },
       "delete": {
-        "summary": "Delete a contact by ID",
+        "summary": "Delete a contact by ID (removes from file + MongoDB)",
         "parameters": [
           {
             "name": "id",
